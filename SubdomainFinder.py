@@ -35,82 +35,6 @@ def parse_args():
     parser.add_argument("-html", "--html", help="Output html, the domain name is the file_name.html", action="store_true")
     return parser.parse_args()
 
-def get_domain_from_crt(domain):
-	print("Get domains from crt...")
-	part_subdomains = []
-	url = "https://crt.sh/?q=%." + domain
-	try:
-		data_raw = requests.get(url, headers = header, verify = False)
-		data_content = data_raw.content.decode("utf-8", "ignore")
-		data_html = BeautifulSoup(data_content, 'html.parser')
-		html_tds = data_html.findAll("td", {"class": "outer"})
-		html_trs = html_tds[1].findAll("tr")
-	except Exception as e:
-		print(e)
-		return None
-	for html_tr in html_trs:
-		try:
-			html_tr_ths = html_tr.findAll("td")
-			subdomain = html_tr_ths[4].get_text()
-			if subdomain != None and subdomain != "" and subdomain not in part_subdomains:
-				part_subdomains.append(subdomain)
-		except:
-			pass
-	return part_subdomains
-
-def get_domain_from_google_transparencyreport(domain):
-	print("Get domains from google transparencyreport... (Need some time)")
-	part_subdomains = []
-	nxet_page_key = ""
-	while nxet_page_key != None:
-		if nxet_page_key == "":
-			api_url = "https://transparencyreport.google.com/transparencyreport/api/v3/httpsreport/ct/certsearch?domain={domain}&include_expired=false&include_subdomains=true".format(domain = domain)
-		else:
-			api_url = "https://transparencyreport.google.com/transparencyreport/api/v3/httpsreport/ct/certsearch/page?p={p}".format(p = nxet_page_key)
-		try:
-			data_raw = requests.get(api_url, headers = header, verify = False, timeout = 10)
-		except Exception as e:
-			print(e)
-			return part_subdomains
-		data_content = data_raw.content.decode("utf-8", "ignore").replace(")]}'", "")
-		data_json = json.loads(data_content)
-		nxet_page_key = data_json[0][3][1]
-		data_json = data_json[0][1]
-		for domain_raw in data_json:
-			if domain_raw[1] not in part_subdomains: part_subdomains.append(domain_raw[1])
-	return part_subdomains
-
-def get_domain_from_dnsdumpster(domain):
-	print("Get domains from dnsdumpster...")
-	part_subdomains = []
-	header = {
-		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:63.0) Gecko/20100101 Firefox/63.0",
-		"Referer": "https://dnsdumpster.com/"
-	}
-	post_data = {
-		"csrfmiddlewaretoken": "3JELokv01c2aMvS3x5hoBcBmOn7ZMmfk",
-		"targetip": domain
-	}
-	cookie = {
-		"csrftoken": "3JELokv01c2aMvS3x5hoBcBmOn7ZMmfk"
-	}
-	try:
-		data_raw = requests.post("https://dnsdumpster.com/", headers = header, data = post_data, cookies = cookie, verify = False)
-		data_content = data_raw.content.decode("utf-8", "ignore")
-		data_html = BeautifulSoup(data_content, 'html.parser')
-		html_tds = data_html.findAll("td", {"class": "col-md-4"})
-	except Exception as e:
-		print(e)
-		return None
-	for html_td in html_tds:
-		domain_temp = html_td.get_text().strip()
-		if domain_temp != "" and domain_temp != None:
-			if domain_temp.find("\n") != -1:
-				domain_temp = domain_temp[:domain_temp.find("\n")]
-			if domain in domain_temp and domain_temp not in part_subdomains:
-				part_subdomains.append(domain_temp)
-	return part_subdomains
-
 def get_domain_from_natcraft(domain):
 	print("Get domains from natcraft... (Need some time)")
 	part_subdomains = []
@@ -156,43 +80,6 @@ def get_domain_from_natcraft(domain):
 				part_subdomains.append(subdomian)
 		page_count += 20
 		time.sleep(3)
-	return part_subdomains
-
-def get_domain_from_threatcrowd(domain):
-	print("Get domains from threatcrowd...")
-	part_subdomains = []
-	url = "https://www.threatcrowd.org/domain.php?domain=" + domain
-	try:
-		data_raw = requests.post(url, headers = header, verify = False, timeout = 10)
-		data_content = data_raw.content.decode("utf-8", "ignore")
-		data_html = BeautifulSoup(data_content, 'html.parser')
-		html_div = data_html.find("div", {"id": "collapseSub"})
-		html_table = html_div.find("table")
-		html_as = html_table.findAll("a")
-	except Exception as e:
-		print(e)
-		return None
-	for html_a in html_as:
-		domain_temp = html_a.get_text().strip()
-		if domain_temp != "" and domain_temp != None and domain_temp not in part_subdomains and domain in domain_temp:
-			part_subdomains.append(domain_temp)
-	return part_subdomains
-
-def get_domain_from_virustotal(domain):
-	print("Get domains from virustotal...")
-	part_subdomains = []
-	url = 'https://www.virustotal.com/vtapi/v2/domain/report'
-	params = {'apikey':'123','domain':domain}
-	try:
-		data_raw = requests.get(url, headers = header, params = params, verify = False, timeout = 10)
-	except Exception as e:
-		print(e)
-		return None
-	data_content = data_raw.content.decode("utf-8", "ignore")
-	data_json = json.loads(data_content)
-	for subdomian in data_json["subdomains"]:
-		if subdomian not in part_subdomains:
-			part_subdomains.append(subdomian)
 	return part_subdomains
 
 def get_domain_from_ask(domain):
@@ -246,33 +133,6 @@ def get_domain_from_baidu(domain):
 		page_count += 10
 	return part_subdomains
 
-def get_domain_from_bing(domain):
-	print("Get domains from bing... (Need some time)")
-	part_subdomains = []
-	have_content = True
-	page_count = 0
-	while page_count < 200:
-		url = "https://cn.bing.com/search?q=site%3A{domain}&qs=n&form=QBRE&sp=-1&pq=site%3A{domain}&sc=2-11&sk=&cvid=C1A7FC61462345B1A71F431E60467C43&toHttps=1&redig=3FEC4F2BE86247E8AE3BB965A62CD454&pn=2&first={page}&FROM=PERE".format(domain = domain, page = page_count)
-		response = requests.get("http://cn.bing.com/", headers = header)
-		try:
-			data_raw = requests.get(url, headers = header, verify = False, cookies = response.cookies.get_dict(), timeout = 10)
-			data_content = data_raw.content.decode("utf-8", "ignore")
-			#print(data_content)
-			data_html = BeautifulSoup(data_content, 'html.parser')
-			html_divs = data_html.findAll("div", {"class": "b_attribution"})
-		except Exception as e:
-			print(e)
-			return part_subdomains
-		temp_page = []
-		for html_div in html_divs:
-			html_cite = html_div.find("cite")
-			parsed = urlparse(html_cite.get_text())
-			parsed_domain = parsed.netloc
-			if parsed_domain not in part_subdomains and parsed_domain != "":
-				part_subdomains.append(parsed_domain)
-		page_count += 10
-	return part_subdomains
-
 def get_domain_from_so(domain):
 	print("Get domains from so... (Need some time)")
 	part_subdomains = []
@@ -299,35 +159,6 @@ def get_domain_from_so(domain):
 		page_count += 1
 	return part_subdomains
 
-def get_domain_from_google(domain):
-	print("Get domains from google... (Need a lot of time)")
-	part_subdomains = []
-	have_content = True
-	page_count = 0
-	while have_content and page_count < 200:
-		url = "https://www.google.com/search?q=site:{domain}&ei=wac1Xdu_KYnFz7sPx62wwAU&start={page}&sa=N&ved=0ahUKEwibpIy4v8jjAhWJ4nMBHccWDFg43gIQ8tMDCEE&biw=2645&bih=1059".format(domain = domain, page = page_count)
-		try:
-			data_raw = requests.get(url, headers = header, verify = False, timeout = 10)
-			data_content = data_raw.content.decode("utf-8", "ignore")
-			data_html = BeautifulSoup(data_content, 'html.parser')
-			html_cites = data_html.findAll("cite", {"class": "iUh30"})
-		except Exception as e:
-			print(e)
-			return part_subdomains
-		if len(html_cites) == 0:
-			have_content = False
-			return part_subdomains
-		for html_cite in html_cites:
-			parsed = urlparse(html_cite.get_text())
-			parsed_domain = parsed.netloc
-			if parsed_domain.find("›") != -1:
-				parsed_domain = parsed_domain[0:parsed_domain.find("›")]
-			if parsed_domain not in part_subdomains and parsed_domain != "":
-				part_subdomains.append(parsed_domain.strip())
-		page_count += 10
-		time.sleep(5) 
-	return part_subdomains
-
 def printx(content, color):
 	colors = {
 		"black": "30",
@@ -343,15 +174,6 @@ def printx(content, color):
 		print(content)
 	else:
 		print("\033[1;{1};40m{0}\033[0m".format(content, colors[color]))
-
-def GetDoaminIP(domain):
-	try:
-		from socket import gethostbyname
-		ip_list = gethostbyname(domain)
-		return ip_list
-	except Exception as e:
-		#print(e)
-		return ""
 
 def GetDomainStatu(domain):
 	import requests
@@ -375,17 +197,10 @@ def subdomain_finder(domain):
 	subdomains = []
 	temp_subdomains = []
 	try:
-		temp_subdomains.append(get_domain_from_crt(domain))
-		temp_subdomains.append(get_domain_from_dnsdumpster(domain))
-		temp_subdomains.append(get_domain_from_threatcrowd(domain))
-		temp_subdomains.append(get_domain_from_virustotal(domain))
 		temp_subdomains.append(get_domain_from_natcraft(domain))
-		temp_subdomains.append(get_domain_from_google_transparencyreport(domain))
 		temp_subdomains.append(get_domain_from_ask(domain))
 		temp_subdomains.append(get_domain_from_baidu(domain))
-		temp_subdomains.append(get_domain_from_bing(domain))
 		temp_subdomains.append(get_domain_from_so(domain))
-		temp_subdomains.append(get_domain_from_google(domain))
 	except KeyboardInterrupt:
 		pass
 	except Exception as e:
@@ -414,12 +229,11 @@ def process_domains(domain, subdomains, mode = "html"):
 			fobject.write(html)
 			domain_id = 1
 			for subdomain in temp_subdomains:
-				domain_ip = GetDoaminIP(subdomain)
 				domain_statu = GetDomainStatu(subdomain)
 				domain_url = "http://{0}".format(subdomain)
 				domain_title = GetUrlTitle(domain_url)
-				print(" {id} : {subdomain} {title} {ip} {statu} ".format(id=str(domain_id), subdomain=subdomain, title=domain_title, ip=domain_ip, statu=domain_statu))
-				fobject.write("<tr>\n<td>{id}</td>\n<td>{subdomain}</td>\n<td>{site}</td>\n<td>{title}</td>\n<td>{ip}</td>\n<td>{statu}</td>\n</tr>".format(id=str(domain_id), subdomain=subdomain, site='<a target="_blank" href="{link}">{name}</a>'.format(link=domain_url, name=subdomain), title=domain_title, ip=domain_ip, statu=domain_statu))
+				print(" {id} : {subdomain} {title} {ip} {statu} ".format(id=str(domain_id), subdomain=subdomain, title=domain_title, statu=domain_statu))
+				fobject.write("<tr>\n<td>{id}</td>\n<td>{subdomain}</td>\n<td>{site}</td>\n<td>{title}</td>\n<td>{ip}</td>\n<td>{statu}</td>\n</tr>".format(id=str(domain_id), subdomain=subdomain, site='<a target="_blank" href="{link}">{name}</a>'.format(link=domain_url, name=subdomain), title=domain_title, statu=domain_statu))
 				domain_id += 1
 			fobject.write("</table>\n</body>\n</html>")
 		printx("\nOutput to file: {0}\n".format(domain.replace(".", "_") + ".html"), "green")
